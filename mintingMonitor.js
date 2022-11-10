@@ -81,7 +81,7 @@ async function getBlockChainInfo() {
 /* ===================================================================== */
 async function main() {
     // var checkedHeights = { "0": 1, "1": 1, "2": 1, "3": 1, "4": 1, "5": 1, "6": 1, "7": 1 }
-    let n = 2447800
+    let n = 0
     var checkedHeights = { "0": n, "1": n, "2": n, "3": n, "4": n, "5": n, "6": n, "7": n }
 
     if (fs.existsSync(config.statusFile)) {
@@ -126,12 +126,12 @@ async function main() {
                             Token: `${amount.Token} (${tokenId})`
                         }
                     }
-                    // slack.alert(alertMsg);
-                    console.log(JSON.stringify(alertMsg, null, 3));
+                    if (config.alertSlack) { slack.alert(alertMsg) }
+                    console.log(JSON.stringify(alertMsg, null, 3))
                 }
             }
         }
-        fs.writeFile(STATUS_FILE, JSON.stringify(checkedHeights, null, 3), 'utf8', function (err) {
+        fs.writeFile(config.statusFile, JSON.stringify(checkedHeights, null, 3), 'utf8', function (err) {
             if (err) {
                 return console.log(err);
             }
