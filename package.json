@@ -1,0 +1,16 @@
+{
+  "name": "mint-monitor",
+  "version": "1.0.0",
+  "description": "",
+  "main": "mintingMonitor.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node mintingMonitor.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.1.3",
+    "slack-notify": "^2.0.4"
+  }
+}
