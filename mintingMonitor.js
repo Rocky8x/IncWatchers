@@ -2,42 +2,58 @@ const fs = require('fs');
 const axios = require("axios");
 const SlackNotify = require('slack-notify');
 
-const config = require("./env.json")
-const slack = SlackNotify(config.webHookUrl);
+const CONFIG = require("./env.json")
+const METADATA = require("./metadata.json")
+const SLACK = SlackNotify(CONFIG.webHookUrl);
 
-const RPC_REQ = {
-    url: config.fullnodeUrl, method: 'POST', headers: { 'Content-Type': 'application/json' },
-    data: { jsonrpc: "1.0", id: 1, method: "", params: [] },
+function newRpcReq() {
+    return {
+        url: CONFIG.fullnodeUrl, method: 'POST', headers: { 'Content-Type': 'application/json' },
+        data: { jsonrpc: "1.0", id: 1, method: "", params: [] }
+    }
 }
 
 const moreResponseFunctions = {
+    getResult: function () {
+        if (typeof this.data.Result == "undefined") {
+            console.log(this.data);
+            throw "Result is undefined"
+        }
+        return this.data.Result
+    },
     getBestHeights: function () {
         let bestHeights = {}
-        for (let i in this.data.Result.BestBlocks) {
-            bestHeights[i] = this.data.Result.BestBlocks[i].Height
+        for (let i in this.getResult().BestBlocks) {
+            bestHeights[i] = this.getResult().BestBlocks[i].Height
             delete bestHeights["-1"]
         }
         return bestHeights
     },
     getMetadata: function () {
         try {
-            return JSON.parse(this.data.Result.Metadata)
+            return JSON.parse(this.getResult().Metadata)
         } catch (error) {
             return { Type: 0 }
         }
     },
     getTxList: function () {
-        return this.data.Result[0].TxHashes
+        try {
+            return this.getResult()[0].TxHashes
+        } catch (err) {
+            console.log(this.data)
+            throw err
+        }
     },
     getProof: function () {
-        return { Privacy: this.data.Result.ProofDetail, Token: this.data.Result.PrivacyCustomTokenProofDetail }
+        return { Privacy: this.getResult().ProofDetail, Token: this.getResult().PrivacyCustomTokenProofDetail }
     },
     getOutCoinAmounts: function () {
         let amount = {}
+        let tokenId = this.getResult().PrivacyCustomTokenID
         let outCoins = {
-            Privacy: this.data.Result.ProofDetail.OutputCoins,
-            Token: this.data.Result.PrivacyCustomTokenProofDetail.OutputCoins
+            PRV: this.getResult().ProofDetail.OutputCoins
         }
+        outCoins[tokenId] = this.getResult().PrivacyCustomTokenProofDetail.OutputCoins
         for (const key in outCoins) {
             amount[key] = 0
             let coins = (outCoins[key]) ? outCoins[key] : []
@@ -47,49 +63,151 @@ const moreResponseFunctions = {
         }
         return amount
     },
-    getTokenId: function () {
-        return this.data.Result.PrivacyCustomTokenID
+    getUsdPriceOfToken: function (tokenId) {
+        for (var item of this.getResult()) {
+            if (item.TokenID == tokenId) {
+                return item.PriceUsd
+            }
+        }
+        return 0
+    },
+    getDecOfToken: function (tokenId) {
+        for (var item of this.getResult()) {
+            if (item.TokenID == tokenId) {
+                return item.PDecimals
+            }
+        }
+        return 1
+    },
+    getTokenInfo: function (tokenId) {
+        for (var item of this.getResult()) {
+            if (item.TokenID == tokenId) {
+                return `${item.Name} - ${item.Network}`
+            }
+        }
+        return ""
     }
 }
 
+async function axiosRetry(req) {
+    let retry = 0
+    while (retry < 5) {
+        try {
+            var result = await axios(req)
+            break
+        } catch (error) {
+            retry++
+            console.log("! Retry", retry)
+            if (retry == 0) { throw error }
+        }
+    }
+    result.getResult = moreResponseFunctions.getResult
+    return result
+}
+
+async function getCsCoinList() {
+    let response = await axiosRetry({
+        url: "https://api-coinservice.incognito.org/coins/tokenlist",
+        method: "GET",
+        headers: { 'Content-Type': 'application/json' }
+    })
+    response.getUsdPriceOfToken = moreResponseFunctions.getUsdPriceOfToken
+    response.getDecOfToken = moreResponseFunctions.getDecOfToken
+    response.getTokenInfo = moreResponseFunctions.getTokenInfo
+    return response
+}
+
 async function getShardBlockByHeight(shardID = 0, height = 0) {
-    RPC_REQ.data.method = "retrieveblockbyheight"
-    RPC_REQ.data.params = [height, shardID, "1"]
-    let response = await axios(RPC_REQ)
+    let req = newRpcReq()
+    req.data.method = "retrieveblockbyheight"
+    req.data.params = [height, shardID, "1"]
+    var response = await axiosRetry(req)
     response.getTxList = moreResponseFunctions.getTxList
     return response
 }
 
 async function getTxByHash(txId) {
-    RPC_REQ.data.method = "gettransactionbyhash"
-    RPC_REQ.data.params = [txId]
-    let response = await axios(RPC_REQ)
+    let req = newRpcReq()
+    req.data.method = "gettransactionbyhash"
+    req.data.params = [txId]
+    var response = await axiosRetry(req)
     response.getMetadata = moreResponseFunctions.getMetadata
     response.getProof = moreResponseFunctions.getProof
     response.getOutCoinAmounts = moreResponseFunctions.getOutCoinAmounts
-    response.getTokenId = moreResponseFunctions.getTokenId
     return response
 }
 
 async function getBlockChainInfo() {
-    RPC_REQ.data.method = "getblockchaininfo"
-    RPC_REQ.data.params = []
-    let response = await axios(RPC_REQ)
+    let req = newRpcReq()
+    req.data.method = "getblockchaininfo"
+    req.data.params = []
+    let response = await axiosRetry(req)
     response.getBestHeights = moreResponseFunctions.getBestHeights
     return response
 }
+
+async function loadPreviewState() {
+    let n = 1
+    var checkedHeights = { "0": n, "1": n, "2": n, "3": n, "4": n, "5": n, "6": n, "7": n }
+    if (fs.existsSync(CONFIG.statusFile)) {
+        console.log("!!! Loading existing state file !!!");
+        var checkedHeights = require(`./${CONFIG.statusFile}`)
+    }
+
+    let reCalShard = []
+    for (let shardId in checkedHeights) {
+        let height = checkedHeights[shardId]
+        if (height < 0) { reCalShard.push(shardId) }
+    }
+    let bestHeights = (await getBlockChainInfo()).getBestHeights()
+    for (let shardId of reCalShard) { checkedHeights[shardId] += bestHeights[shardId] }
+    return checkedHeights
+}
+
+async function checkTxOfShardAtHeight(shard, height) {
+    const csCoins = await getCsCoinList()
+    let txlist = (await getShardBlockByHeight(shard - 0, height)).getTxList()
+    for (tx of txlist) {
+        var result = await getTxByHash(tx)
+        let outcointAmount = result.getOutCoinAmounts()
+        let outcoinValueUSD = {}
+        let outcoinDecimal = {}
+        for (let tokenId in outcointAmount) {
+            let dec = csCoins.getDecOfToken(tokenId)
+            outcoinValueUSD[tokenId] = (outcointAmount[tokenId] / (10 ** dec)) * csCoins.getUsdPriceOfToken(tokenId)
+            outcoinDecimal[tokenId] = dec
+        }
+
+        let metaType = result.getMetadata().Type
+        let alertMsg = {
+            text: 'Minting alert',
+            fields: {
+                TX: result.getResult().Hash,
+                Metadata: `#${metaType} ${METADATA[metaType]}`
+            }
+        }
+        let doAlert = false
+        for (let tokenId in outcoinValueUSD) {
+            let value = outcoinValueUSD[tokenId]
+            if (value > CONFIG.alertValueInUSD) {
+                alertMsg.fields[csCoins.getTokenInfo(tokenId)] = `${tokenId}. `
+                    + `Amount: ${(outcointAmount[tokenId] / (10 ** outcoinDecimal[tokenId])).toFixed(2)} `
+                    + `(${outcoinValueUSD[tokenId].toFixed(2)} USD)`
+                doAlert = true
+            }
+        }
+        if (doAlert) {
+            if (CONFIG.alertSlack) { SLACK.alert(alertMsg) }
+            console.log(JSON.stringify(alertMsg, null, 3))
+        }
+    }
+}
 /* ===================================================================== */
 async function main() {
-    // var checkedHeights = { "0": 1, "1": 1, "2": 1, "3": 1, "4": 1, "5": 1, "6": 1, "7": 1 }
-    let n = 0
-    var checkedHeights = { "0": n, "1": n, "2": n, "3": n, "4": n, "5": n, "6": n, "7": n }
-
-    if (fs.existsSync(config.statusFile)) {
-        console.log("file exist");
-        var checkedHeights = require(`./${config.statusFile}`)
-    }
+    CONFIG
+    var checkedHeights = await loadPreviewState()
     process.on('SIGINT', function () {
-        fs.writeFile(config.statusFile, JSON.stringify(checkedHeights, null, 3), 'utf8', function (err) {
+        fs.writeFile(CONFIG.statusFile, JSON.stringify(checkedHeights, null, 3), 'utf8', function (err) {
             if (err) {
                 return console.log(err);
             }
@@ -99,46 +217,28 @@ async function main() {
     })
     let blkchainInfo = await getBlockChainInfo()
     let bestHeights = blkchainInfo.getBestHeights()
-
+    let promises = []
     for (let shard in bestHeights) {
-        for (var height = checkedHeights[shard]; height < bestHeights[shard]; height++) {
-            console.log(`Checking shard${shard}@${height}`);
-            let txlist = (await getShardBlockByHeight(shard - 0, height)).getTxList()
-            checkedHeights[shard] = height
-            for (tx of txlist) {
-                try {
-                    var result = await getTxByHash(tx)
-                    checkedHeights[shard] = height - 1
-                } catch (error) {
-                    break
-                }
-                let amount = result.getOutCoinAmounts()
-                let tokenId = result.getTokenId()
-                let alertAmount = ((config.d6Tokens.includes(tokenId)) ? 10e6 : 10e9) * config.alertAmount
-                let alertAmountPRV = config.alertAmount * 10e9
-                if (amount.Privacy > alertAmountPRV || amount.Token > alertAmount) {
-                    let alertMsg = {
-                        text: 'Minting alert',
-                        fields: {
-                            TX: result.data.Result.Hash,
-                            Metadata: result.getMetadata().Type,
-                            PRV: amount.Privacy,
-                            Token: `${amount.Token} (${tokenId})`
-                        }
-                    }
-                    if (config.alertSlack) { slack.alert(alertMsg) }
-                    console.log(JSON.stringify(alertMsg, null, 3))
-                }
+        console.log(`Processing Shard${shard}`)
+        for (let height = checkedHeights[shard]; height < bestHeights[shard]; height++) {
+            promises.push(checkTxOfShardAtHeight(shard, height))
+            if (promises.length >= 1000) {
+                await Promise.all(promises)
+                console.log(`Processed 1000 blocks of Shard${shard}, now @ ${height}`)
+                // console.log(JSON.stringify(checkedHeights, null, 3))
+                checkedHeights[shard] = height
+                promises = []
             }
         }
-        fs.writeFile(config.statusFile, JSON.stringify(checkedHeights, null, 3), 'utf8', function (err) {
-            if (err) {
-                return console.log(err);
-            }
-            console.log("The file was saved!");
-        });
     }
+    await Promise.all(promises)
+    fs.writeFile(CONFIG.statusFile, JSON.stringify(checkedHeights, null, 3), 'utf8', function (err) {
+        if (err) {
+            return console.log(err);
+        }
+        console.log("The file was saved!");
+    })
 }
 
-
 main()
+
