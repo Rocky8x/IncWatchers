@@ -226,9 +226,9 @@ async function main() {
                 await Promise.all(promises)
                 console.log(`Processed 1000 blocks of Shard${shard}, now @ ${height}`)
                 // console.log(JSON.stringify(checkedHeights, null, 3))
-                checkedHeights[shard] = height
                 promises = []
             }
+            checkedHeights[shard] = height
         }
     }
     await Promise.all(promises)
