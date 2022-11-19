@@ -1,5 +1,6 @@
 env.json
 currentHeight.json
+data.json
 node_modules
 target
 package-lock.json

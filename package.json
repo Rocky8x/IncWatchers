@@ -1,11 +1,13 @@
 {
-  "name": "mint-monitor",
+  "name": "inc-watchers",
   "version": "1.0.0",
   "description": "",
   "main": "mintingMonitor.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node mintingMonitor.js"
+    "test": "echo No test ! relax",
+    "mintWatcher": "node Watchers/MintBurnWatcher.js",
+    "mempoolWatcher": "node Watchers/MempoolWatcher.js",
+    "vitalityWatcher": "node Watchers/VitalityWatcher.js"
   },
   "author": "",
   "license": "ISC",

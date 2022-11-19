@@ -1,27 +1,26 @@
 const fs = require('fs');
 const axios = require("axios");
-const SlackNotify = require('slack-notify');
+const METADATA = require("../metadata.json");
+const { GLOBAL } = require('../global');
+const { ALERT } = require('../libs/utils');
 
-const CONFIG = require("./env.json")
-const METADATA = require("./metadata.json")
-const SLACK = SlackNotify(CONFIG.webHookUrl);
-
+var randomNode = GLOBAL.getRandomIncNode()
 function newRpcReq() {
     return {
-        url: CONFIG.fullnodeUrl, method: 'POST', headers: { 'Content-Type': 'application/json' },
+        url: randomNode, method: 'POST', headers: { 'Content-Type': 'application/json' },
         data: { jsonrpc: "1.0", id: 1, method: "", params: [] }
     }
 }
 
 const moreResponseFunctions = {
-    getResult: function () {
+    getResult: function() {
         if (typeof this.data.Result == "undefined") {
             console.log(this.data);
             throw "Result is undefined"
         }
         return this.data.Result
     },
-    getBestHeights: function () {
+    getBestHeights: function() {
         let bestHeights = {}
         for (let i in this.getResult().BestBlocks) {
             bestHeights[i] = this.getResult().BestBlocks[i].Height
@@ -29,14 +28,14 @@ const moreResponseFunctions = {
         }
         return bestHeights
     },
-    getMetadata: function () {
+    getMetadata: function() {
         try {
             return JSON.parse(this.getResult().Metadata)
         } catch (error) {
             return { Type: 0 }
         }
     },
-    getTxList: function () {
+    getTxList: function() {
         try {
             return this.getResult()[0].TxHashes
         } catch (err) {
@@ -44,10 +43,10 @@ const moreResponseFunctions = {
             throw err
         }
     },
-    getProof: function () {
+    getProof: function() {
         return { Privacy: this.getResult().ProofDetail, Token: this.getResult().PrivacyCustomTokenProofDetail }
     },
-    getOutCoinAmounts: function () {
+    getOutCoinAmounts: function() {
         let amount = {}
         let tokenId = this.getResult().PrivacyCustomTokenID
         let outCoins = {
@@ -63,7 +62,7 @@ const moreResponseFunctions = {
         }
         return amount
     },
-    getUsdPriceOfToken: function (tokenId) {
+    getUsdPriceOfToken: function(tokenId) {
         for (var item of this.getResult()) {
             if (item.TokenID == tokenId) {
                 return item.PriceUsd
@@ -71,7 +70,7 @@ const moreResponseFunctions = {
         }
         return 0
     },
-    getDecOfToken: function (tokenId) {
+    getDecOfToken: function(tokenId) {
         for (var item of this.getResult()) {
             if (item.TokenID == tokenId) {
                 return item.PDecimals
@@ -79,7 +78,7 @@ const moreResponseFunctions = {
         }
         return 1
     },
-    getTokenInfo: function (tokenId) {
+    getTokenInfo: function(tokenId) {
         for (var item of this.getResult()) {
             if (item.TokenID == tokenId) {
                 return `${item.Name} - ${item.Network}`
@@ -97,6 +96,7 @@ async function axiosRetry(req) {
             break
         } catch (error) {
             retry++
+            console.log(error)
             console.log("! Retry", retry)
             if (retry == 0) { throw error }
         }
@@ -147,20 +147,18 @@ async function getBlockChainInfo() {
 }
 
 async function loadPreviewState() {
-    let n = 1
-    var checkedHeights = { "0": n, "1": n, "2": n, "3": n, "4": n, "5": n, "6": n, "7": n }
-    if (fs.existsSync(CONFIG.statusFile)) {
-        console.log("!!! Loading existing state file !!!");
-        var checkedHeights = require(`./${CONFIG.statusFile}`)
-    }
+    var checkedHeights = GLOBAL.loadStatus()
 
     let reCalShard = []
     for (let shardId in checkedHeights) {
         let height = checkedHeights[shardId]
         if (height < 0) { reCalShard.push(shardId) }
     }
-    let bestHeights = (await getBlockChainInfo()).getBestHeights()
-    for (let shardId of reCalShard) { checkedHeights[shardId] += bestHeights[shardId] }
+    if (reCalShard) {
+        let bestHeights = (await getBlockChainInfo()).getBestHeights()
+        for (let shardId of reCalShard) { checkedHeights[shardId] += bestHeights[shardId] }
+    }
+
     return checkedHeights
 }
 
@@ -180,7 +178,7 @@ async function checkTxOfShardAtHeight(shard, height) {
 
         let metaType = result.getMetadata().Type
         let alertMsg = {
-            text: 'Minting alert',
+            text: 'Minting/Burn alert',
             fields: {
                 TX: result.getResult().Hash,
                 Metadata: `#${metaType} ${METADATA[metaType]}`
@@ -189,31 +187,22 @@ async function checkTxOfShardAtHeight(shard, height) {
         let doAlert = false
         for (let tokenId in outcoinValueUSD) {
             let value = outcoinValueUSD[tokenId]
-            if (value > CONFIG.alertValueInUSD) {
+            if (value > GLOBAL.config.alertValueInUSD) {
                 alertMsg.fields[csCoins.getTokenInfo(tokenId)] = `${tokenId}. `
                     + `Amount: ${(outcointAmount[tokenId] / (10 ** outcoinDecimal[tokenId])).toFixed(2)} `
                     + `(${outcoinValueUSD[tokenId].toFixed(2)} USD)`
                 doAlert = true
             }
         }
-        if (doAlert) {
-            if (CONFIG.alertSlack) { SLACK.alert(alertMsg) }
-            console.log(JSON.stringify(alertMsg, null, 3))
-        }
+        (doAlert) ? ALERT(alertMsg) : null
     }
 }
 /* ===================================================================== */
 async function main() {
-    CONFIG
     var checkedHeights = await loadPreviewState()
-    process.on('SIGINT', function () {
-        fs.writeFile(CONFIG.statusFile, JSON.stringify(checkedHeights, null, 3), 'utf8', function (err) {
-            if (err) {
-                return console.log(err);
-            }
-            console.log("SIGINT caught! The file was saved! exit");
-            process.exit()
-        });
+    process.on('SIGINT', function() {
+        console.log("SIGINT caught! Saving state.")
+        GLOBAL.writeStatus(JSON.stringify(checkedHeights, null, 3), process.exit)
     })
     let blkchainInfo = await getBlockChainInfo()
     let bestHeights = blkchainInfo.getBestHeights()
@@ -232,12 +221,7 @@ async function main() {
         }
     }
     await Promise.all(promises)
-    fs.writeFile(CONFIG.statusFile, JSON.stringify(checkedHeights, null, 3), 'utf8', function (err) {
-        if (err) {
-            return console.log(err);
-        }
-        console.log("The file was saved!");
-    })
+    GLOBAL.writeStatus(JSON.stringify(checkedHeights, null, 3))
 }
 
 main()
