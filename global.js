@@ -7,6 +7,8 @@ var GLOBAL = {
      * @returns {string}
      */
     getRandomIncNode: function() {
+        let randNode = this.config.incFullnodes[randRange(this.config.incFullnodes.length)]
+        console.log("Using node:", randNode);
         return this.config.incFullnodes[randRange(this.config.incFullnodes.length)]
     },
     writeStatus: function(content, callback = null) {
