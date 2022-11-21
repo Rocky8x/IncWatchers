@@ -1,4 +1,4 @@
-const { CONFIG } = require("../global");
+const { GLOBAL } = require("../global");
 const { IncNode } = require("../libs/IncNode");
 const { wait, ALERT } = require("../libs/utils");
 
@@ -9,7 +9,7 @@ let ALERTMSG = {
     }
 }
 async function main() {
-    var node = new IncNode(CONFIG.getRandomIncNode())
+    var node = new IncNode(GLOBAL.getRandomIncNode())
     monitorDuration = 120
     let currentTxList = []
 

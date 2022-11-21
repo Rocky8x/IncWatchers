@@ -5,10 +5,10 @@ function wait(second) {
 }
 
 function ALERT(msg) {
-    const { CONFIG } = require('../global');
-    const SLACK = SlackNotify(CONFIG.webHookUrl);
+    const { GLOBAL } = require('../global');
+    const SLACK = SlackNotify(GLOBAL.config.webHookUrl);
     console.log(msg)
-    if (CONFIG.alertSlack) { SLACK.alert(alertMsg) }
+    if (GLOBAL.config.alertSlack) { SLACK.alert(alertMsg) }
 }
 
 async function axiosRetry(req) {
