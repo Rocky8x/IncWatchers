@@ -162,8 +162,7 @@ async function loadPreviewState() {
     return checkedHeights
 }
 
-async function checkTxOfShardAtHeight(shard, height) {
-    const csCoins = await getCsCoinList()
+async function checkTxOfShardAtHeight(shard, height, csCoins) {
     let txlist = (await getShardBlockByHeight(shard - 0, height)).getTxList()
     for (tx of txlist) {
         var result = await getTxByHash(tx)
@@ -200,6 +199,7 @@ async function checkTxOfShardAtHeight(shard, height) {
 /* ===================================================================== */
 async function main() {
     var checkedHeights = await loadPreviewState()
+    var csCoins = await getCsCoinList()
     process.on('SIGINT', function() {
         console.log("SIGINT caught! Saving state.")
         GLOBAL.writeStatus(JSON.stringify(checkedHeights, null, 3), process.exit)
@@ -210,7 +210,7 @@ async function main() {
     for (let shard in bestHeights) {
         console.log(`Processing Shard${shard}`)
         for (let height = checkedHeights[shard]; height < bestHeights[shard]; height++) {
-            promises.push(checkTxOfShardAtHeight(shard, height))
+            promises.push(checkTxOfShardAtHeight(shard, height, csCoins))
             if (promises.length >= 1000) {
                 await Promise.all(promises)
                 console.log(`Processed 1000 blocks of Shard${shard}, now @ ${height}`)
