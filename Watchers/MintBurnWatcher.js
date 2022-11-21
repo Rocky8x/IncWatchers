@@ -4,7 +4,7 @@ const METADATA = require("../metadata.json");
 const { GLOBAL } = require('../global');
 const { ALERT } = require('../libs/utils');
 const SHARD_ERR = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 }
-var randomNode = GLOBAL.getRandomIncNode()
+var randomNode = GLOBAL.config.incFullnodes.at(-2)
 function newRpcReq() {
     return {
         url: randomNode, method: 'POST', headers: { 'Content-Type': 'application/json' },
