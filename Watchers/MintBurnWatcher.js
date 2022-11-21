@@ -3,7 +3,7 @@ const axios = require("axios");
 const METADATA = require("../metadata.json");
 const { GLOBAL } = require('../global');
 const { ALERT } = require('../libs/utils');
-const SHARD_ERR = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 }
+const SHARD_ERR = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] }
 var randomNode = GLOBAL.config.incFullnodes.at(-2)
 function newRpcReq() {
     return {
@@ -167,7 +167,7 @@ async function checkTxOfShardAtHeight(shard, height, csCoins) {
         var txlist = (await getShardBlockByHeight(shard - 0, height)).getTxList()
         console.log(`Got trouble checking shard${shard} @ ${height}, rollback status for next rounnd`);
     } catch (error) {
-        SHARD_ERR[shard] = (SHARD_ERR[shard] == 0) ? height : Math.min(height, SHARD_ERR[shard])
+        SHARD_ERR[shard].push(height)
         return
     }
     for (tx of txlist) {
@@ -175,7 +175,7 @@ async function checkTxOfShardAtHeight(shard, height, csCoins) {
             var result = await getTxByHash(tx)
             console.log(`Got trouble checking shard${shard} @ ${height}, tx: ${tx}, rollback status for next rounnd`);
         } catch (error) {
-            SHARD_ERR[shard] = (SHARD_ERR[shard] == 0) ? height : Math.min(height, SHARD_ERR[shard])
+            SHARD_ERR[shard].push(height)
             return
         }
         let outcointAmount = result.getOutCoinAmounts()
@@ -222,7 +222,7 @@ async function main() {
     for (let shard in bestHeights) {
         console.log(`Processing Shard${shard}`)
         for (let height = checkedHeights[shard]; height < bestHeights[shard]; height++) {
-            if (SHARD_ERR[shard] != 0) { continue }
+            if (SHARD_ERR[shard]) { continue }
             promises.push(checkTxOfShardAtHeight(shard, height, csCoins))
             if (promises.length >= 1000) {
                 await Promise.all(promises)
@@ -235,7 +235,8 @@ async function main() {
     }
     await Promise.all(promises)
     for (let shard in checkedHeights) {
-        checkedHeights[shard] = (SHARD_ERR[shard] != 0) ? SHARD_ERR[shard] : checkedHeights[shard]
+        SHARD_ERR[shard].push(checkedHeights[shard])
+        checkedHeights[shard] = Math.min(...SHARD_ERR[shard])
     }
     GLOBAL.writeStatus(JSON.stringify(checkedHeights, null, 3))
 }
