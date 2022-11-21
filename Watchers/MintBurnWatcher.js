@@ -3,8 +3,8 @@ const axios = require("axios");
 const METADATA = require("../metadata.json");
 const { GLOBAL } = require('../global');
 const { ALERT } = require('../libs/utils');
-const SHARD_ERR = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] }
-var randomNode = GLOBAL.config.incFullnodes.at(-2)
+const SHARD_ERR = { "0": [], "1": [], "2": [], "3": [], "4": [], "5": [], "6": [], "7": [] }
+var randomNode = GLOBAL.config.incFullnodes.at(1)
 function newRpcReq() {
     return {
         url: randomNode, method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -96,7 +96,7 @@ async function axiosRetry(req) {
             break
         } catch (error) {
             retry++
-            console.log(error)
+            console.log(error.code)
             console.log("! Retry", retry)
             if (retry == 0) { throw error }
         }
@@ -165,18 +165,18 @@ async function loadPreviewState() {
 async function checkTxOfShardAtHeight(shard, height, csCoins) {
     try {
         var txlist = (await getShardBlockByHeight(shard - 0, height)).getTxList()
-        console.log(`Got trouble checking shard${shard} @ ${height}, rollback status for next rounnd`);
     } catch (error) {
+        console.log(`Got trouble checking shard${shard} @ ${height}, rollback status for next rounnd`);
         SHARD_ERR[shard].push(height)
-        return
+        throw error
     }
     for (tx of txlist) {
         try {
             var result = await getTxByHash(tx)
-            console.log(`Got trouble checking shard${shard} @ ${height}, tx: ${tx}, rollback status for next rounnd`);
         } catch (error) {
+            console.log(`Got trouble checking shard${shard} @ ${height}, tx: ${tx}, rollback status for next rounnd`);
             SHARD_ERR[shard].push(height)
-            return
+            throw error
         }
         let outcointAmount = result.getOutCoinAmounts()
         let outcoinValueUSD = {}
@@ -222,12 +222,14 @@ async function main() {
     for (let shard in bestHeights) {
         console.log(`Processing Shard${shard}`)
         for (let height = checkedHeights[shard]; height < bestHeights[shard]; height++) {
-            if (SHARD_ERR[shard]) { continue }
+            if (SHARD_ERR[shard].length > 0) {
+                console.log("Problem with previous height. skip ", height - 1, SHARD_ERR);
+                break
+            }
             promises.push(checkTxOfShardAtHeight(shard, height, csCoins))
             if (promises.length >= 1000) {
                 await Promise.all(promises)
                 console.log(`Processed 1000 blocks of Shard${shard}, now @ ${height}`)
-                // console.log(JSON.stringify(checkedHeights, null, 3))
                 promises = []
             }
             checkedHeights[shard] = height
