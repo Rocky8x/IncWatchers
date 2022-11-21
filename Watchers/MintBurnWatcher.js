@@ -235,7 +235,7 @@ async function main() {
     }
     await Promise.all(promises)
     for (let shard in checkedHeights) {
-        checkedHeights[shard] = (SHARD_ERR[shard] == 0) ? SHARD_ERR[shard] : checkedHeights[shard]
+        checkedHeights[shard] = (SHARD_ERR[shard] != 0) ? SHARD_ERR[shard] : checkedHeights[shard]
     }
     GLOBAL.writeStatus(JSON.stringify(checkedHeights, null, 3))
 }
