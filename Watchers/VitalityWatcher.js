@@ -22,7 +22,8 @@ async function checkIncFullnodeVitality(nodeUrl) {
         console.log("    Shard:", shard, blkchainInfo0[shard], "->", blkchainInfo1[shard]);
         if (blkchainInfo0[shard] >= blkchainInfo1[shard]) {
             doAlert = true
-            ALERTMSG.fields[shard] = `Stuck @ ${blkchainInfo0[shard]}`
+            ALERTMSG.text += nodeUrl
+            ALERTMSG.fields[`chainID: ${shard}`] = `Stuck @ ${blkchainInfo0[shard]}`
         }
     }
     (doAlert) ? ALERT(ALERTMSG) : null
