@@ -19,11 +19,16 @@ async function checkIncFullnodeVitality(nodeUrl) {
     console.log("Vitality check:", nodeUrl);
 
     for (let shard in blkchainInfo0) {
-        console.log("    Shard:", shard, blkchainInfo0[shard], "->", blkchainInfo1[shard]);
-        if (blkchainInfo0[shard] >= blkchainInfo1[shard]) {
-            doAlert = true
-            ALERTMSG.text = 'Vitality alert: ' + nodeUrl
-            ALERTMSG.fields[`chainID: ${shard}`] = `Stuck @ ${blkchainInfo0[shard]}`
+        for (let retry = 1; retry <= 5; retry++) {
+            console.log("    Shard:", shard, blkchainInfo0[shard], "->", blkchainInfo1[shard]);
+            if (blkchainInfo0[shard] >= blkchainInfo1[shard]) {
+                doAlert = true
+                ALERTMSG.text = 'Vitality alert: ' + nodeUrl
+                ALERTMSG.fields[`chainID: ${shard}`] = `Stuck @ ${blkchainInfo0[shard]}`
+            } else {
+                doAlert = false
+                break
+            }
         }
     }
     (doAlert) ? ALERT(ALERTMSG) : null
