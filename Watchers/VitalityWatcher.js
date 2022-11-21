@@ -25,6 +25,9 @@ async function checkIncFullnodeVitality(nodeUrl) {
                 doAlert = true
                 ALERTMSG.text = 'Vitality alert: ' + nodeUrl
                 ALERTMSG.fields[`chainID: ${shard}`] = `Stuck @ ${blkchainInfo0[shard]}`
+                blkchainInfo0 = await node.getLatestHeights()
+                await wait(gap)
+                blkchainInfo1 = await node.getLatestHeights()
             } else {
                 doAlert = false
                 break
