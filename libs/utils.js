@@ -8,7 +8,7 @@ function ALERT(msg) {
     const { GLOBAL } = require('../global');
     const SLACK = SlackNotify(GLOBAL.config.webHookUrl);
     console.log(msg)
-    if (GLOBAL.config.alertSlack) { SLACK.alert(alertMsg) }
+    if (GLOBAL.config.alertSlack) { SLACK.alert(msg) }
 }
 
 async function axiosRetry(req) {
@@ -19,7 +19,7 @@ async function axiosRetry(req) {
             break
         } catch (error) {
             retry++
-            console.log(error);
+            console.log(error.code);
             console.log("! Retry", retry, req)
             if (retry == 0) { throw error }
         }
