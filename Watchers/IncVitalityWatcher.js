@@ -5,7 +5,7 @@ const { GLOBAL } = require('../global');
 const gap = 20
 
 async function checkIncFullnodeVitality(nodeUrl) {
-    let alertMsg = newAlert("Vitality alert")
+    let alertMsg = newAlert('Vitality alert: ' + nodeUrl)
     var node = new IncNode(nodeUrl)
     try {
         var blkchainInfo0 = await node.getLatestHeights()
@@ -19,8 +19,9 @@ async function checkIncFullnodeVitality(nodeUrl) {
                 console.log("    Shard:", shard, blkchainInfo0[shard], "->", blkchainInfo1[shard]);
                 if (blkchainInfo0[shard] >= blkchainInfo1[shard]) {
                     doAlert = true
-                    alertMsg.text = 'Vitality alert: ' + nodeUrl
-                    alertMsg.fields[`chainID: ${shard}`] = `Stuck @ ${blkchainInfo0[shard]}`
+                    let info = {}
+                    info[`chainID: ${shard}`] = `Stuck @ ${blkchainInfo0[shard]}`
+                    alertMsg.setInfo(info)
                     blkchainInfo0 = await node.getLatestHeights()
                     await wait(gap)
                     blkchainInfo1 = await node.getLatestHeights()
@@ -32,7 +33,7 @@ async function checkIncFullnodeVitality(nodeUrl) {
         }
         (doAlert) ? alertMsg.alert() : null
     } catch (error) {
-        alertMsg.fields["ERR"] = "Node seem to be down"
+        alertMsg.setInfo("Node seem to be down")
         alertMsg.alert()
     }
 }

@@ -26,7 +26,7 @@ async function checkEvmFullnodeVitality(nodeUrl) {
         alert[nodeUrl] = `Stucked @ ${blockNum0}`
         return alert
     } catch (error) {
-        console.log(error);
+        console.log(nodeUrl, error);
         let result = {}
         result[nodeUrl] = `Seem to be down`
         return result
@@ -42,10 +42,8 @@ async function main() {
         alertMsgs.push(result)
     })
     await Promise.all(tasks)
-    for (let msg of alertMsgs) {
-        alert.fields = { ...alert.fields, ...msg }
-    }
-    if (Object.keys(alert.fields).length > 0) {
+    for (let msg of alertMsgs) { alert.addInfo(msg) }
+    if (Object.keys(alert.content.fields).length > 0) {
         alert.alert()
     }
 }

@@ -4,21 +4,28 @@ function wait(second) {
     return new Promise(resolve => setTimeout(resolve, second * 1000));
 }
 
-function newAlert(msg = "Alert") {
+function newAlert(title = "Alert") {
     let alertObj = {
-        text: msg,
-        fields: {},
-        alert: ALERT
+        content: {
+            text: title,
+            fields: {}
+        },
+        alert: function() {
+            const { GLOBAL } = require('../global');
+            const SLACK = SlackNotify(GLOBAL.config.webHookUrl);
+            console.log("!!! ALERT:", this.content)
+            if (GLOBAL.config.alertSlack) { SLACK.alert(this.content) }
+        },
+        addInfo: function(info) {
+            this.content.fields = { ...this.content.fields, ...info }
+            return this
+        },
+        setInfo: function(info) {
+            this.content.fields = info
+            return this
+        }
     }
     return alertObj
-}
-
-function ALERT(msg) {
-    if (typeof msg == "undefined") { msg = { text: this.text, fields: this.fields } }
-    const { GLOBAL } = require('../global');
-    const SLACK = SlackNotify(GLOBAL.config.webHookUrl);
-    console.log("!!! ALERT:", msg)
-    if (GLOBAL.config.alertSlack) { SLACK.alert(msg) }
 }
 
 async function axiosRetry(req) {
@@ -50,4 +57,4 @@ function randRange() {
     return Math.floor(Math.random() * max) + min
 }
 
-module.exports = { wait, axiosRetry, ALERT, randRange, newAlert }
+module.exports = { wait, axiosRetry, randRange, newAlert }
