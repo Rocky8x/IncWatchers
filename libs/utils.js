@@ -4,10 +4,20 @@ function wait(second) {
     return new Promise(resolve => setTimeout(resolve, second * 1000));
 }
 
+function newAlert(msg = "Alert") {
+    let alertObj = {
+        text: msg,
+        fields: {},
+        alert: ALERT
+    }
+    return alertObj
+}
+
 function ALERT(msg) {
+    if (typeof msg == "undefined") { msg = { text: this.text, fields: this.fields } }
     const { GLOBAL } = require('../global');
     const SLACK = SlackNotify(GLOBAL.config.webHookUrl);
-    console.log(msg)
+    console.log("!!! ALERT:", msg)
     if (GLOBAL.config.alertSlack) { SLACK.alert(msg) }
 }
 
@@ -40,4 +50,4 @@ function randRange() {
     return Math.floor(Math.random() * max) + min
 }
 
-module.exports = { wait, axiosRetry, ALERT, randRange }
+module.exports = { wait, axiosRetry, ALERT, randRange, newAlert }

@@ -1,8 +1,7 @@
-const fs = require('fs');
 const axios = require("axios");
 const METADATA = require("../metadata.json");
 const { GLOBAL } = require('../global');
-const { ALERT } = require('../libs/utils');
+const { newAlert } = require('../libs/utils');
 const SHARD_ERR = { "0": [], "1": [], "2": [], "3": [], "4": [], "5": [], "6": [], "7": [] }
 var randomNode = GLOBAL.getRandomIncNode()
 function newRpcReq() {
@@ -188,24 +187,23 @@ async function checkTxOfShardAtHeight(shard, height, csCoins) {
         }
 
         let metaType = result.getMetadata().Type
-        let alertMsg = {
-            text: 'Minting/Burn alert',
-            fields: {
-                TX: result.getResult().Hash,
-                Metadata: `#${metaType} ${METADATA[metaType]}`
-            }
+        let alert = newAlert('Minting/Burn alert')
+        alert.fields = {
+            TX: result.getResult().Hash,
+            Metadata: `#${metaType} ${METADATA[metaType]}`
         }
+
         let doAlert = false
         for (let tokenId in outcoinValueUSD) {
             let value = outcoinValueUSD[tokenId]
             if (value > GLOBAL.config.alertValueInUSD) {
-                alertMsg.fields[csCoins.getTokenInfo(tokenId)] = `${tokenId}. `
+                alert.fields[csCoins.getTokenInfo(tokenId)] = `${tokenId}. `
                     + `Amount: ${(outcointAmount[tokenId] / (10 ** outcoinDecimal[tokenId])).toFixed(2)} `
                     + `(${outcoinValueUSD[tokenId].toFixed(2)} USD)`
                 doAlert = true
             }
         }
-        (doAlert) ? ALERT(alertMsg) : null
+        (doAlert) ? alert.alert() : null
     }
 }
 /* ===================================================================== */

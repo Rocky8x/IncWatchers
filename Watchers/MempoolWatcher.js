@@ -1,13 +1,8 @@
 const { GLOBAL } = require("../global");
 const { IncNode } = require("../libs/IncNode");
-const { wait, ALERT } = require("../libs/utils");
+const { wait, newAlert } = require("../libs/utils");
 
 var gap = 20
-let ALERTMSG = {
-    text: 'Mempool seem to be stucked !!!',
-    fields: {
-    }
-}
 async function main() {
     var node = new IncNode(GLOBAL.getRandomIncNode())
     monitorDuration = 120
@@ -17,8 +12,9 @@ async function main() {
         var mempoolTxList = await node.getTxListMemPool()
         console.log("Mempool:", mempoolTxList);
         if (mempoolTxList == currentTxList) {
-            ALERTMSG.fields.fullnode = node.url
-            ALERT(ALERTMSG)
+            let alert = newAlert("Mempool seem to be stucked !!!")
+            alert.fields.fullnode = node.url
+            alert.alert()
         }
         txList = mempoolTxList
         await wait(gap)
