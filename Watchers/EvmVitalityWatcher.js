@@ -35,7 +35,7 @@ async function checkEvmFullnodeVitality(nodeUrl) {
 
 async function main() {
     let alertMsgs = []
-    let alert = newAlert("Vitality alert")
+    let alert = newAlert()
 
     const tasks = GLOBAL.config.evmFullnodes.map(async node => {
         let result = await checkEvmFullnodeVitality(node)

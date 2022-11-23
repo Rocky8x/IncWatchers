@@ -4,11 +4,19 @@ function wait(second) {
     return new Promise(resolve => setTimeout(resolve, second * 1000));
 }
 
-function newAlert(title = "Alert") {
+function newAlert(title) {
+    if (!title) {
+        var alertTitle = (process.env.BUILD_DISPLAY_NAME) ? process.env.BUILD_DISPLAY_NAME : "Alert!"
+        alertTitle += (process.env.JOB_BASE_NAME) ? ` ${process.env.JOB_BASE_NAME}` : ""
+    }
     let alertObj = {
         content: {
-            text: title,
+            text: alertTitle,
             fields: {}
+        },
+        appendTitle: function(text) {
+            this.content.text += ` ${text}`
+            return this
         },
         alert: function() {
             const { GLOBAL } = require('../global');
@@ -17,11 +25,19 @@ function newAlert(title = "Alert") {
             if (GLOBAL.config.alertSlack) { SLACK.alert(this.content) }
         },
         addInfo: function(info) {
-            this.content.fields = { ...this.content.fields, ...info }
+            if (typeof info == "string") {
+                this.content.fields["!!!"] = info
+            } else {
+                this.content.fields = { ...this.content.fields, ...info }
+            }
             return this
         },
         setInfo: function(info) {
-            this.content.fields = info
+            if (typeof info == "string") {
+                this.content.fields["!!!"] = info
+            } else {
+                this.content.fields = info
+            }
             return this
         }
     }

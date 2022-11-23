@@ -12,7 +12,7 @@ async function main() {
         var mempoolTxList = await node.getTxListMemPool()
         console.log("Mempool:", mempoolTxList);
         if (mempoolTxList == currentTxList) {
-            let alert = newAlert("Mempool seem to be stucked !!!")
+            let alert = newAlert().appendTitle("Mempool seem to be stucked !!!")
             alert.fields.fullnode = node.url
             alert.alert()
         }

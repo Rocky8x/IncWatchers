@@ -187,7 +187,7 @@ async function checkTxOfShardAtHeight(shard, height, csCoins) {
         }
 
         let metaType = result.getMetadata().Type
-        let alert = newAlert('Minting/Burn alert')
+        let alert = newAlert()
         alert.addInfo({
             TX: result.getResult().Hash,
             Metadata: `#${metaType} ${METADATA[metaType]}`
@@ -197,9 +197,11 @@ async function checkTxOfShardAtHeight(shard, height, csCoins) {
         for (let tokenId in outcoinValueUSD) {
             let value = outcoinValueUSD[tokenId]
             if (value > GLOBAL.config.alertValueInUSD) {
-                alert.fields[csCoins.getTokenInfo(tokenId)] = `${tokenId}. `
+                let moreInfo = {}
+                moreInfo[csCoins.getTokenInfo(tokenId)] = `${tokenId}. `
                     + `Amount: ${(outcointAmount[tokenId] / (10 ** outcoinDecimal[tokenId])).toFixed(2)} `
                     + `(${outcoinValueUSD[tokenId].toFixed(2)} USD)`
+                alert.addInfo(moreInfo)
                 doAlert = true
             }
         }

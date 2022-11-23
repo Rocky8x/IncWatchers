@@ -5,7 +5,7 @@ const { GLOBAL } = require('../global');
 const gap = 20
 
 async function checkIncFullnodeVitality(nodeUrl) {
-    let alertMsg = newAlert('Vitality alert: ' + nodeUrl)
+    let alertMsg = newAlert().appendTitle(nodeUrl)
     var node = new IncNode(nodeUrl)
     try {
         var blkchainInfo0 = await node.getLatestHeights()
