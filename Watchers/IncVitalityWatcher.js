@@ -33,7 +33,7 @@ async function checkIncFullnodeVitality(nodeUrl) {
         }
         (doAlert) ? alertMsg.alert() : null
     } catch (error) {
-        alertMsg.setInfo("Node seem to be down")
+        alertMsg.setInfo({ ERR: "Node seem to be down" })
         alertMsg.alert()
     }
 }
