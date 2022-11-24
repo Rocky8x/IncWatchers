@@ -2,7 +2,7 @@ const METADATA = require("../metadata.json");
 const { GLOBAL } = require('../global');
 const { newAlert, axiosRetry } = require('../libs/utils');
 const SHARD_ERR = { "0": [], "1": [], "2": [], "3": [], "4": [], "5": [], "6": [], "7": [] }
-var randomNode = GLOBAL.getIncNodeByName("fullnode12")
+var randomNode = GLOBAL.getRandomIncNode()
 function newRpcReq() {
     return {
         url: randomNode, method: 'POST', headers: { 'Content-Type': 'application/json' },
