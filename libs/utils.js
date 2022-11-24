@@ -39,6 +39,16 @@ function newAlert(title) {
                 this.content.fields = info
             }
             return this
+        },
+        clearInfo: function() {
+            this.content.fields = {}
+            return this
+        },
+        alertIf: function() {
+            if (Object.keys(this.content.fields).length > 0) {
+                this.alert
+            }
+            return this
         }
     }
     return alertObj
@@ -57,7 +67,7 @@ async function axiosRetry(req) {
             if (retry == 0) { throw error }
         }
     }
-    return result
+    return { ...result, getResult: axioGetResult }
 }
 
 function randRange() {
@@ -71,6 +81,13 @@ function randRange() {
         throw new Error("Expect 1 or 2 arguments while got", arguments.length)
     }
     return Math.floor(Math.random() * max) + min
+}
+function axioGetResult() {
+    if (typeof this.data.Result == "undefined") {
+        console.log(this.data);
+        throw "Result is undefined"
+    }
+    return this.data.Result
 }
 
 module.exports = { wait, axiosRetry, randRange, newAlert }

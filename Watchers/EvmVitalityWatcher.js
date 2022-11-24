@@ -43,9 +43,7 @@ async function main() {
     })
     await Promise.all(tasks)
     for (let msg of alertMsgs) { alert.addInfo(msg) }
-    if (Object.keys(alert.content.fields).length > 0) {
-        alert.alert()
-    }
+    alert.alertIf()
 }
 
 main()

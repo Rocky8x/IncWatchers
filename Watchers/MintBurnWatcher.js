@@ -1,9 +1,8 @@
-const axios = require("axios");
 const METADATA = require("../metadata.json");
 const { GLOBAL } = require('../global');
-const { newAlert } = require('../libs/utils');
+const { newAlert, axiosRetry } = require('../libs/utils');
 const SHARD_ERR = { "0": [], "1": [], "2": [], "3": [], "4": [], "5": [], "6": [], "7": [] }
-var randomNode = GLOBAL.getRandomIncNode()
+var randomNode = GLOBAL.getIncNodeByName("fullnode12")
 function newRpcReq() {
     return {
         url: randomNode, method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -87,33 +86,19 @@ const moreResponseFunctions = {
     }
 }
 
-async function axiosRetry(req) {
-    let retry = 0
-    while (retry < 5) {
-        try {
-            var result = await axios(req)
-            break
-        } catch (error) {
-            retry++
-            console.log(error.code)
-            console.log("! Retry", retry)
-            if (retry == 0) { throw error }
-        }
-    }
-    result.getResult = moreResponseFunctions.getResult
-    return result
-}
-
 async function getCsCoinList() {
     let response = await axiosRetry({
         url: "https://api-coinservice.incognito.org/coins/tokenlist",
         method: "GET",
         headers: { 'Content-Type': 'application/json' }
     })
-    response.getUsdPriceOfToken = moreResponseFunctions.getUsdPriceOfToken
-    response.getDecOfToken = moreResponseFunctions.getDecOfToken
-    response.getTokenInfo = moreResponseFunctions.getTokenInfo
-    return response
+
+    return {
+        ...response,
+        getUsdPriceOfToken: moreResponseFunctions.getUsdPriceOfToken,
+        getDecOfToken: moreResponseFunctions.getDecOfToken,
+        getTokenInfo: moreResponseFunctions.getTokenInfo
+    }
 }
 
 async function getShardBlockByHeight(shardID = 0, height = 0) {
@@ -121,8 +106,7 @@ async function getShardBlockByHeight(shardID = 0, height = 0) {
     req.data.method = "retrieveblockbyheight"
     req.data.params = [height, shardID, "1"]
     var response = await axiosRetry(req)
-    response.getTxList = moreResponseFunctions.getTxList
-    return response
+    return { ...response, getTxList: moreResponseFunctions.getTxList }
 }
 
 async function getTxByHash(txId) {
@@ -133,7 +117,12 @@ async function getTxByHash(txId) {
     response.getMetadata = moreResponseFunctions.getMetadata
     response.getProof = moreResponseFunctions.getProof
     response.getOutCoinAmounts = moreResponseFunctions.getOutCoinAmounts
-    return response
+    return {
+        ...response,
+        getMetadata: moreResponseFunctions.getMetadata,
+        getProof: moreResponseFunctions.getProof,
+        getOutCoinAmounts: moreResponseFunctions.getOutCoinAmounts
+    }
 }
 
 async function getBlockChainInfo() {
@@ -141,8 +130,10 @@ async function getBlockChainInfo() {
     req.data.method = "getblockchaininfo"
     req.data.params = []
     let response = await axiosRetry(req)
-    response.getBestHeights = moreResponseFunctions.getBestHeights
-    return response
+    return {
+        ...response,
+        getBestHeights: moreResponseFunctions.getBestHeights
+    }
 }
 
 async function loadPreviewState() {
@@ -165,7 +156,7 @@ async function checkTxOfShardAtHeight(shard, height, csCoins) {
     try {
         var txlist = (await getShardBlockByHeight(shard - 0, height)).getTxList()
     } catch (error) {
-        console.log(`Got trouble checking shard${shard} @ ${height}, rollback status for next rounnd`);
+        console.log(`Got trouble checking shard${shard} @ ${height}, roll back status for next round`);
         SHARD_ERR[shard].push(height)
         throw error
     }
@@ -173,7 +164,7 @@ async function checkTxOfShardAtHeight(shard, height, csCoins) {
         try {
             var result = await getTxByHash(tx)
         } catch (error) {
-            console.log(`Got trouble checking shard${shard} @ ${height}, tx: ${tx}, rollback status for next rounnd`);
+            console.log(`Got trouble checking shard${shard} @ ${height}, tx: ${tx}, roll back status for next round`);
             SHARD_ERR[shard].push(height)
             throw error
         }
@@ -243,4 +234,9 @@ async function main() {
     GLOBAL.writeStatus(JSON.stringify(checkedHeights, null, 3))
 }
 
-main()
+main().then(function(result) {
+    console.log("Done!!!");
+}).catch(function(err) {
+    console.log("Catch err");
+    console.log(err);
+})

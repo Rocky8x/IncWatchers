@@ -4,3 +4,4 @@ data.json
 node_modules
 target
 package-lock.json
+lab*

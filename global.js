@@ -11,6 +11,15 @@ var GLOBAL = {
         console.log("Using node:", randNode);
         return this.config.incFullnodes[randRange(this.config.incFullnodes.length)]
     },
+    getIncNodeByName: function(name) {
+        for (let url of this.config.incFullnodes) {
+            if (url.includes(name)) {
+                return url
+            }
+        }
+        console.log("!!!Found no node with name:", name);
+        return null
+    },
     writeStatus: function(content, callback = null) {
         if (!callback) {
             callback = function(err) {
