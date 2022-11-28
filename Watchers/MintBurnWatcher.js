@@ -5,8 +5,10 @@ const SHARD_ERR = { "0": [], "1": [], "2": [], "3": [], "4": [], "5": [], "6": [
 var randomNode = GLOBAL.getRandomIncNode()
 function newRpcReq() {
     return {
-        url: randomNode, method: 'POST', headers: { 'Content-Type': 'application/json' },
-        data: { jsonrpc: "1.0", id: 1, method: "", params: [] }
+        url: randomNode, method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip' },
+        data: { jsonrpc: "1.0", id: 1, method: "", params: [] },
+        'decompress': true
+
     }
 }
 
@@ -234,4 +236,10 @@ async function main() {
     GLOBAL.writeStatus(JSON.stringify(checkedHeights, null, 3))
 }
 
-main()
+main().then((result) => {
+    console.log("DONE");
+    console.log(result);
+}).catch((err) => {
+    console.log("ERR");
+    console.log(err);
+});
