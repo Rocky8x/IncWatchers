@@ -242,9 +242,4 @@ async function main() {
     GLOBAL.writeStatus(JSON.stringify(checkedHeights, null, 3))
 }
 
-main().then((result) => {
-    console.log("DONE");
-}).catch((err) => {
-    console.log("ERR");
-    console.log(err);
-});
+main()
