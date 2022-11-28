@@ -10,9 +10,8 @@ class IncNode {
         let req = {
             url: this.url,
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip' },
+            headers: { 'Content-Type': 'application/json' },
             data: { jsonrpc: "1.0", id: 1, params: params, method: method },
-            'decompress': true
         }
         return await axiosRetry(req)
     }

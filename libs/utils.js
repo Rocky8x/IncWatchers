@@ -5,10 +5,10 @@ function wait(second) {
 }
 
 function newAlert(title) {
-    if (!title) {
+    if (typeof title != "string") {
         var alertTitle = (process.env.BUILD_DISPLAY_NAME) ? process.env.BUILD_DISPLAY_NAME : "Alert!"
         alertTitle += (process.env.JOB_BASE_NAME) ? ` ${process.env.JOB_BASE_NAME}` : ""
-    }
+    } else { alertTitle = title }
     let alertObj = {
         content: {
             text: alertTitle,

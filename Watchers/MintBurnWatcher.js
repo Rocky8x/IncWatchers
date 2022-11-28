@@ -5,10 +5,8 @@ const SHARD_ERR = { "0": [], "1": [], "2": [], "3": [], "4": [], "5": [], "6": [
 var randomNode = GLOBAL.getRandomIncNode()
 function newRpcReq() {
     return {
-        url: randomNode, method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip' },
+        url: randomNode, method: 'POST', headers: { 'Content-Type': 'application/json' },
         data: { jsonrpc: "1.0", id: 1, method: "", params: [] },
-        'decompress': true
-
     }
 }
 
