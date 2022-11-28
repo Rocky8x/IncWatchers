@@ -18,7 +18,7 @@ function newAlert(title) {
             this.content.text += ` ${text}`
             return this
         },
-        alert: function() {
+        send: function() {
             const { GLOBAL } = require('../global');
             const SLACK = SlackNotify(GLOBAL.config.webHookUrl);
             console.log("!!! ALERT:", this.content)
@@ -44,9 +44,9 @@ function newAlert(title) {
             this.content.fields = {}
             return this
         },
-        alertIf: function() {
+        sendIf: function() {
             if (Object.keys(this.content.fields).length > 0) {
-                this.alert
+                this.send()
             }
             return this
         }

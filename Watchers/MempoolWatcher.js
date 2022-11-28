@@ -14,7 +14,7 @@ async function main() {
         if (mempoolTxList == currentTxList) {
             let alert = newAlert().appendTitle("Mempool seem to be stucked !!!")
             alert.fields.fullnode = node.url
-            alert.alert()
+            alert.send()
         }
         txList = mempoolTxList
         await wait(gap)

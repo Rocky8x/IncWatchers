@@ -43,7 +43,7 @@ async function main() {
     })
     await Promise.all(tasks)
     for (let msg of alertMsgs) { alert.addInfo(msg) }
-    alert.alertIf()
+    alert.sendIf()
 }
 
 main()

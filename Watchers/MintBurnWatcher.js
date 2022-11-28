@@ -9,7 +9,7 @@ function newRpcReq() {
         data: { jsonrpc: "1.0", id: 1, method: "", params: [] },
     }
 }
-
+const TOKEN_LIST_URL = 'https://api-coinservice.incognito.org/coins/tokenlist'
 const moreResponseFunctions = {
     getResult: function() {
         if (typeof this.data.Result == "undefined") {
@@ -88,7 +88,7 @@ const moreResponseFunctions = {
 
 async function getCsCoinList() {
     let response = await axiosRetry({
-        url: "https://api-coinservice.incognito.org/coins/tokenlist",
+        url: TOKEN_LIST_URL,
         method: "GET",
         headers: { 'Content-Type': 'application/json' }
     })
@@ -196,13 +196,21 @@ async function checkTxOfShardAtHeight(shard, height, csCoins) {
                 doAlert = true
             }
         }
-        (doAlert) ? alert.alert() : null
+        (doAlert) ? alert.send() : null
     }
 }
 /* ===================================================================== */
 async function main() {
     var checkedHeights = await loadPreviewState()
-    var csCoins = await getCsCoinList()
+    try {
+        var csCoins = await getCsCoinList()
+    } catch (error) {
+        let alert = newAlert("Error while get token list")
+        alert.addInfo({ DOWN: TOKEN_LIST_URL })
+        alert.send()
+        console.log(error);
+        process.exit(1)
+    }
     process.on('SIGINT', function() {
         console.log("SIGINT caught! Saving state.")
         GLOBAL.writeStatus(JSON.stringify(checkedHeights, null, 3), process.exit)
@@ -236,7 +244,6 @@ async function main() {
 
 main().then((result) => {
     console.log("DONE");
-    console.log(result);
 }).catch((err) => {
     console.log("ERR");
     console.log(err);

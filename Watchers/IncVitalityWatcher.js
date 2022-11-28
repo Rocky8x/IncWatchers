@@ -27,11 +27,11 @@ async function checkIncFullnodeVitality(nodeUrl) {
                 }
             }
         }
-        alertMsg.alertIf()
+        alertMsg.sendIf()
     } catch (error) {
         console.log(error)
         alertMsg.setInfo({ ERR: "Node seem to be down" })
-        alertMsg.alert()
+        alertMsg.send()
     }
 }
 
