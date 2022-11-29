@@ -1,90 +1,11 @@
 const METADATA = require("../metadata.json");
 const { GLOBAL } = require('../global');
 const { newAlert, axiosRetry } = require('../libs/utils');
+const { IncNode } = require("../libs/IncNode");
+
 const SHARD_ERR = { "0": [], "1": [], "2": [], "3": [], "4": [], "5": [], "6": [], "7": [] }
-var randomNode = GLOBAL.getRandomIncNode()
-function newRpcReq() {
-    return {
-        url: randomNode, method: 'POST', headers: { 'Content-Type': 'application/json' },
-        data: { jsonrpc: "1.0", id: 1, method: "", params: [] },
-    }
-}
+const FULLNODE = new IncNode(GLOBAL.getRandomIncNode())
 const TOKEN_LIST_URL = 'https://api-coinservice.incognito.org/coins/tokenlist'
-const moreResponseFunctions = {
-    getResult: function() {
-        if (typeof this.data.Result == "undefined") {
-            console.log(this.data);
-            throw "Result is undefined"
-        }
-        return this.data.Result
-    },
-    getBestHeights: function() {
-        let bestHeights = {}
-        for (let i in this.getResult().BestBlocks) {
-            bestHeights[i] = this.getResult().BestBlocks[i].Height
-            delete bestHeights["-1"]
-        }
-        return bestHeights
-    },
-    getMetadata: function() {
-        try {
-            return JSON.parse(this.getResult().Metadata)
-        } catch (error) {
-            return { Type: 0 }
-        }
-    },
-    getTxList: function() {
-        try {
-            return this.getResult()[0].TxHashes
-        } catch (err) {
-            console.log(this.data)
-            throw err
-        }
-    },
-    getProof: function() {
-        return { Privacy: this.getResult().ProofDetail, Token: this.getResult().PrivacyCustomTokenProofDetail }
-    },
-    getOutCoinAmounts: function() {
-        let amount = {}
-        let tokenId = this.getResult().PrivacyCustomTokenID
-        let outCoins = {
-            PRV: this.getResult().ProofDetail.OutputCoins
-        }
-        outCoins[tokenId] = this.getResult().PrivacyCustomTokenProofDetail.OutputCoins
-        for (const key in outCoins) {
-            amount[key] = 0
-            let coins = (outCoins[key]) ? outCoins[key] : []
-            for (const item of coins) {
-                amount[key] += (item.Value - 0)
-            }
-        }
-        return amount
-    },
-    getUsdPriceOfToken: function(tokenId) {
-        for (var item of this.getResult()) {
-            if (item.TokenID == tokenId) {
-                return item.PriceUsd
-            }
-        }
-        return 0
-    },
-    getDecOfToken: function(tokenId) {
-        for (var item of this.getResult()) {
-            if (item.TokenID == tokenId) {
-                return item.PDecimals
-            }
-        }
-        return 1
-    },
-    getTokenInfo: function(tokenId) {
-        for (var item of this.getResult()) {
-            if (item.TokenID == tokenId) {
-                return `${item.Name} - ${item.Network}`
-            }
-        }
-        return ""
-    }
-}
 
 async function getCsCoinList() {
     let response = await axiosRetry({
@@ -95,44 +16,30 @@ async function getCsCoinList() {
 
     return {
         ...response,
-        getUsdPriceOfToken: moreResponseFunctions.getUsdPriceOfToken,
-        getDecOfToken: moreResponseFunctions.getDecOfToken,
-        getTokenInfo: moreResponseFunctions.getTokenInfo
-    }
-}
-
-async function getShardBlockByHeight(shardID = 0, height = 0) {
-    let req = newRpcReq()
-    req.data.method = "retrieveblockbyheight"
-    req.data.params = [height, shardID, "1"]
-    var response = await axiosRetry(req)
-    return { ...response, getTxList: moreResponseFunctions.getTxList }
-}
-
-async function getTxByHash(txId) {
-    let req = newRpcReq()
-    req.data.method = "gettransactionbyhash"
-    req.data.params = [txId]
-    var response = await axiosRetry(req)
-    response.getMetadata = moreResponseFunctions.getMetadata
-    response.getProof = moreResponseFunctions.getProof
-    response.getOutCoinAmounts = moreResponseFunctions.getOutCoinAmounts
-    return {
-        ...response,
-        getMetadata: moreResponseFunctions.getMetadata,
-        getProof: moreResponseFunctions.getProof,
-        getOutCoinAmounts: moreResponseFunctions.getOutCoinAmounts
-    }
-}
-
-async function getBlockChainInfo() {
-    let req = newRpcReq()
-    req.data.method = "getblockchaininfo"
-    req.data.params = []
-    let response = await axiosRetry(req)
-    return {
-        ...response,
-        getBestHeights: moreResponseFunctions.getBestHeights
+        getUsdPriceOfToken: function(tokenId) {
+            for (var item of this.getResult()) {
+                if (item.TokenID == tokenId) {
+                    return item.PriceUsd
+                }
+            }
+            return 0
+        },
+        getDecOfToken: function(tokenId) {
+            for (var item of this.getResult()) {
+                if (item.TokenID == tokenId) {
+                    return item.PDecimals
+                }
+            }
+            return 1
+        },
+        getTokenInfo: function(tokenId) {
+            for (var item of this.getResult()) {
+                if (item.TokenID == tokenId) {
+                    return `${item.Name} - ${item.Network}`
+                }
+            }
+            return ""
+        }
     }
 }
 
@@ -145,24 +52,23 @@ async function loadPreviewState() {
         if (height < 0) { reCalShard.push(shardId) }
     }
     if (reCalShard) {
-        let bestHeights = (await getBlockChainInfo()).getBestHeights()
+        let bestHeights = (await FULLNODE.rpcGetBlkChainInfo()).getBestHeights()
         for (let shardId of reCalShard) { checkedHeights[shardId] += bestHeights[shardId] }
     }
-
     return checkedHeights
 }
 
 async function checkTxOfShardAtHeight(shard, height, csCoins) {
     try {
-        var txlist = (await getShardBlockByHeight(shard - 0, height)).getTxList()
+        var txlist = (await FULLNODE.rpcGetShardBlockByHeight(shard - 0, height)).getTxList()
     } catch (error) {
         console.log(`Got trouble checking shard${shard} @ ${height}, roll back status for next round`);
         SHARD_ERR[shard].push(height)
         throw error
     }
-    for (tx of txlist) {
+    for (let tx of txlist) {
         try {
-            var result = await getTxByHash(tx)
+            var result = await FULLNODE.rpcGetTxByHash(tx)
         } catch (error) {
             console.log(`Got trouble checking shard${shard} @ ${height}, tx: ${tx}, roll back status for next round`);
             SHARD_ERR[shard].push(height)
@@ -215,7 +121,7 @@ async function main() {
         console.log("SIGINT caught! Saving state.")
         GLOBAL.writeStatus(JSON.stringify(checkedHeights, null, 3), process.exit)
     })
-    let blkchainInfo = await getBlockChainInfo()
+    let blkchainInfo = await FULLNODE.rpcGetBlkChainInfo()
     let bestHeights = blkchainInfo.getBestHeights()
     let promises = []
     for (let shard in bestHeights) {
